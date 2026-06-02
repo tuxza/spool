@@ -28,7 +28,7 @@ mod upload;
 async fn main() {
     if let Err(e) = start_spool().await {
         eprintln!("spool crashed with an error! {}", e);
-        eprintln!("Please report this issue on our Github repo at https://github.com/tuxza/spool");
+        eprintln!("Please report this issue on our Github repo at https://github.com/tuxza/spool"); // yeah do that
         std::process::exit(1);
     }
 }
@@ -36,12 +36,15 @@ async fn main() {
 async fn start_spool() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all("./uploads/temp")?;
 
-    let db: DatabaseConnection =
-        Database::connect("postgres://postgres:password@localhost/database").await?;
+    // let db: DatabaseConnection =
+    //     Database::connect("postgres://postgres:password@localhost/database").await?;
+    // this is example code from sea-orm.. i have zero clue on how to use it thats why its commented out!
 
     let cors = CorsLayer::new()
         .allow_origin("https://localhost:3000/".parse::<HeaderValue>()?)
-        .allow_methods([Method::GET, Method::POST]);
+        .allow_methods([Method::GET, Method::POST]); // omg MORE example code i havent done any research on??
+    // if someone is reading this repo lmk how to use this properly otherwise im gonna have to read DOCUMENTATION! ew!
+    // i get the general idea of what it does just like.. not the purpose LOL
 
     let app = Router::new()
         .route("/", get(|| async { "spool server is running!" }))
