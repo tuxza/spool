@@ -1,1 +1,6 @@
-/target
+/target/
+.env
+*.env.local
+**/*.rs.bk
+.stfolder
+.stignore
