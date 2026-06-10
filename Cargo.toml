@@ -7,9 +7,11 @@ edition = "2024"
 axum = { version = "0.8.9", features = ["multipart"] }
 futures-util = "0.3.32"
 http = "1.4.1"
-sea-orm = { version = "1.1.20", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
-sea-orm-migration = { version = "1.1", features = ["runtime-tokio-rustls", "sqlx-postgres"] }
+rand = "0.8"
+sea-orm = { version = "2.0.0-rc.40", features = ["sqlx-sqlite", "runtime-tokio-rustls", "macros"] }
+sea-orm-migration = { version = "2.0.0-rc.40", features = ["runtime-tokio-rustls", "sqlx-sqlite"] }
 
 serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.52.3", features = ["full"] }
 tower-http = { version = "0.6.11", features = ["cors"] }
+uuid = { version = "1.23.2", features = ["v4"] }

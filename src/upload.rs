@@ -6,26 +6,37 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/#AGPL>.
  */
 
-use axum::{Router, extract::Multipart, http::StatusCode, routing::post};
-//use futures_util::stream::{StreamExt, TryStreamExt};
-//use std::path::Path;
-//use tokio::fs::File;
-//use tokio::io::AsyncWriteExt;
+use axum::{
+    extract::{Multipart, State},
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+};
+use sea_orm::DatabaseConnection;
 
-pub async fn upload(mut multipart: Multipart) -> Result<StatusCode, StatusCode> {
-    // irony is this downloads files yet is named upload
-    // check api key here
+pub async fn upload(
+    State(db): State<DatabaseConnection>,
+    headers: HeaderMap,
+    mut multipart: Multipart,
+) -> impl IntoResponse {
+    // irony is this downloads files yet is named upload.. maybe i should rename it to like download or something
+    let spool_key = match headers.get("X-spool-key") {
+        Some(value) => match value.to_str() {
+            Ok(str_val) => str_val,
+            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid spool key!").into_response(),
+        },
+        None => return (StatusCode::UNAUTHORIZED, "missing X-spool-key header!").into_response(),
+    };
 
-    // uhh wait what else do we do
-    // oh yeah after auth accept n download file
+    // TODO: check spool key against database lmao
 
-    // add to database here
-    // ogfilename
-    // filename
-    // size (in bytes)
-    // timestamp
-    // uploaded_by
+    // if spool key is valid, add og filename and scrambled filename to database
+    // accept file n download (need to.. somehow have the client stream it. or something)
+    // add more file details here to database
 
     // send the thing below!
-    Ok(StatusCode::OK)
+    (
+        StatusCode::OK,
+        "upload successful! thank you for choosing spool",
+    )
+        .into_response()
 }

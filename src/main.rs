@@ -18,11 +18,16 @@ use axum::{
     routing::{get, post},
 };
 use http::{HeaderValue, Method};
-use sea_orm::{Database, DatabaseConnection};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, Database, DatabaseConnection, EntityTrait, QueryFilter, Set,
+};
 use std::fs;
 use tower_http::cors::CorsLayer;
 
+mod entities;
+mod etc;
 mod upload;
+use crate::entities::users;
 
 #[tokio::main]
 async fn main() {
@@ -36,24 +41,29 @@ async fn main() {
 async fn start_spool() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all("./uploads/temp")?;
 
-    // let db: DatabaseConnection =
-    //     Database::connect("postgres://postgres:password@localhost/database").await?;
-    // this is example code from sea-orm.. i have zero clue on how to use it thats why its commented out!
+    let db = etc::db_connection().await?;
+
+    let admin_user = users::Entity::find()
+        .filter(users::Column::Uid.eq(1))
+        .one(&db)
+        .await?;
+    if admin_user.is_none() {
+        etc::setup_spool(&db).await?;
+    }
 
     let cors = CorsLayer::new()
         .allow_origin("https://localhost:3000/".parse::<HeaderValue>()?)
-        .allow_methods([Method::GET, Method::POST]); // omg MORE example code i havent done any research on??
-    // if someone is reading this repo lmk how to use this properly otherwise im gonna have to read DOCUMENTATION! ew!
-    // i get the general idea of what it does just like.. not the purpose LOL
+        .allow_methods([Method::GET, Method::POST]);
 
     let app = Router::new()
         .route("/", get(|| async { "spool server is running!" }))
         .route("/upload", post(upload::upload))
+        .with_state(db)
         .layer(cors);
 
     let addr = "0.0.0.0:3000";
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    println!("running on http://localhost:3000");
+    println!("running on {}", addr);
 
     axum::serve(listener, app).await?;
 
