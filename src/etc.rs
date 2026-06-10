@@ -1,8 +1,10 @@
-use rand::prelude::SliceRandom;
-use rand::thread_rng;
-
+use rand::prelude::IteratorRandom;
 use sea_orm::Set;
-use sea_orm::{ActiveModelTrait, Database, DatabaseConnection};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, Database, DatabaseConnection, EntityTrait, QueryFilter,
+};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use uuid::Uuid;
 
 use crate::entities::users;
@@ -12,15 +14,17 @@ pub fn generate_spool_key() -> String {
 }
 
 pub fn random_ass_string() -> String {
-    let words = include_str!("words.txt");
-    let words: Vec<&str> = words.lines().collect();
-    let mut random = thread_rng();
-    let mut result = String::new();
-    for _ in 0.. {
-        result.push_str(words.choose(&mut random).unwrap());
-        result.push(' ');
-    }
-    result
+    let ammo = File::open("/home/tuxzilla/Projects/spool/src/words.txt") // stupid solution make work better later
+        .expect("missing words.txt! this is how i generate passwords pls add it");
+    let mag = BufReader::new(ammo);
+
+    let lines = mag
+        .lines()
+        .map(|line| line.expect("failed to parse line row:"))
+        .filter(|line| !line.trim().is_empty());
+
+    let password = lines.choose_multiple(&mut rand::thread_rng(), 8);
+    password.join("-")
 }
 
 pub async fn db_connection() -> Result<DatabaseConnection, Box<dyn std::error::Error>> {
@@ -34,6 +38,7 @@ pub async fn setup_spool(db: &DatabaseConnection) -> Result<(), Box<dyn std::err
     let psd = random_ass_string();
 
     let admin_acc = users::ActiveModel {
+        uid: Set(1),
         username: Set("admin".to_string()),
         psd: Set(psd.clone()),
         api_key: Set(api_key.clone()),

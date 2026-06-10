@@ -27,10 +27,15 @@ use tower_http::cors::CorsLayer;
 mod entities;
 mod etc;
 mod upload;
-use crate::entities::users;
+use crate::{
+    entities::users::{self, Column::Username},
+    etc::random_ass_string,
+};
 
 #[tokio::main]
 async fn main() {
+    println!("{}", random_ass_string());
+    println!("starting spool...");
     if let Err(e) = start_spool().await {
         eprintln!("spool crashed with an error! {}", e);
         eprintln!("Please report this issue on our Github repo at https://github.com/tuxza/spool"); // yeah do that
@@ -43,12 +48,27 @@ async fn start_spool() -> Result<(), Box<dyn std::error::Error>> {
 
     let db = etc::db_connection().await?;
 
+    // the whole reason for this check is to 1. help init spool on first startup
+    // 2. to avoid creating duplicate admin users
+    // 3. prevent db tampering cause i said uid 1 special
+    // of course you can (when i make it) create more users with admin perms
+
     let admin_user = users::Entity::find()
         .filter(users::Column::Uid.eq(1))
         .one(&db)
         .await?;
-    if admin_user.is_none() {
-        etc::setup_spool(&db).await?;
+
+    match admin_user {
+        None => {
+            etc::setup_spool(&db).await?;
+        }
+        Some(user) => {
+            if user.username != "admin" {
+                return Err(
+                    "database tampering or violation detected! : UID 1 Username column must be 'admin'".into()
+                );
+            }
+        }
     }
 
     let cors = CorsLayer::new()
@@ -63,7 +83,7 @@ async fn start_spool() -> Result<(), Box<dyn std::error::Error>> {
 
     let addr = "0.0.0.0:3000";
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    println!("running on {}", addr);
+    println!("listening on {}", addr);
 
     axum::serve(listener, app).await?;
 
