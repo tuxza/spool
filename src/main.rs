@@ -71,9 +71,13 @@ async fn start_spool() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    use http::{HeaderValue, Method, header};
+    use tower_http::cors::CorsLayer;
+
     let cors = CorsLayer::new()
-        .allow_origin("https://localhost:3000/".parse::<HeaderValue>()?)
-        .allow_methods([Method::GET, Method::POST]);
+        .allow_origin("http://localhost:3000".parse::<HeaderValue>()?)
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]);
 
     let app = Router::new()
         .route("/", get(|| async { "spool server is running!" }))
