@@ -1,7 +1,9 @@
 /*!
 spool, a Rust written CDN uploader
 Copyright (C) 2026, Tuxzilla T. Penguin
+*/
 
+/*
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -18,12 +20,11 @@ use axum::{
     routing::{get, post},
 };
 use http::{HeaderValue, Method, header};
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, Database, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use std::fs;
 use tower_http::cors::CorsLayer;
 
+mod auth;
 mod entities;
 mod etc;
 mod upload;
@@ -65,7 +66,7 @@ async fn start_spool() -> Result<(), Box<dyn std::error::Error>> {
         Some(user) => {
             if user.username != "admin" {
                 return Err(
-                    "database tampering or violation detected! : UID 1 Username column must be 'admin'".into()
+                    "database tampering detected ! : UID 1 Username column must be 'admin'".into(),
                 );
             }
         }
@@ -79,6 +80,7 @@ async fn start_spool() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/", get(|| async { "spool server is running!" }))
         .route("/upload", post(upload::upload))
+        .route("/auth/login", post(auth::login))
         .with_state(db)
         .layer(cors);
 
