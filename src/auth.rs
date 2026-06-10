@@ -20,10 +20,10 @@ pub async fn login(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    if let Some(user) = login {
-        if user.psd == payload.password {
-            return Ok(StatusCode::OK);
-        }
+    if let Some(user) = login
+        && user.psd == payload.password
+    {
+        return Ok(StatusCode::OK);
     }
     Err((
         StatusCode::UNAUTHORIZED,

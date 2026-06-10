@@ -1,8 +1,6 @@
 use rand::prelude::IteratorRandom;
 use sea_orm::Set;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, Database, DatabaseConnection, EntityTrait, QueryFilter,
-};
+use sea_orm::{ActiveModelTrait, Database, DatabaseConnection, EntityTrait, QueryFilter};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use uuid::Uuid;

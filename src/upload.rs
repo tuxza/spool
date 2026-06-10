@@ -14,12 +14,12 @@ use axum::{
 use sea_orm::DatabaseConnection;
 
 pub async fn upload(
-    State(db): State<DatabaseConnection>,
+    State(_db): State<DatabaseConnection>,
     headers: HeaderMap,
-    mut multipart: Multipart,
+    _multipart: Multipart,
 ) -> impl IntoResponse {
     // irony is this downloads files yet is named upload.. maybe i should rename it to like download or something
-    let spool_key = match headers.get("X-spool-key") {
+    let _spool_key = match headers.get("X-spool-key") {
         Some(value) => match value.to_str() {
             Ok(str_val) => str_val,
             Err(_) => return (StatusCode::BAD_REQUEST, "Invalid spool key!").into_response(),

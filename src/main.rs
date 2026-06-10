@@ -29,7 +29,7 @@ mod entities;
 mod etc;
 mod upload;
 use crate::{
-    entities::users::{self, Column::Username},
+    entities::users::{self},
     etc::random_ass_string,
 };
 
