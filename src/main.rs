@@ -17,7 +17,7 @@ use axum::{
     Router,
     routing::{get, post},
 };
-use http::{HeaderValue, Method};
+use http::{HeaderValue, Method, header};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Database, DatabaseConnection, EntityTrait, QueryFilter, Set,
 };
@@ -70,9 +70,6 @@ async fn start_spool() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-
-    use http::{HeaderValue, Method, header};
-    use tower_http::cors::CorsLayer;
 
     let cors = CorsLayer::new()
         .allow_origin("http://localhost:3000".parse::<HeaderValue>()?)
