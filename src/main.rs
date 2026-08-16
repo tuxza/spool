@@ -9,6 +9,7 @@ mod serve;
 #[tokio::main]
 async fn main() {
     let app = Router::new()
+        .route("/", get(|| async { "hello from spool" }))
         .route("/serve", get(serve::files::send_image))
         .route("/upload", post(download::files::download));
 
