@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS files (
-    id INTEGER PRIMARY KEY NOT NULL,
-    upld_filename TEXT NOT NULL,
-    og_filename TEXT NOT NULL,
-    disk_path TEXT NOT NULL,
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    fid INTEGER PRIMARY KEY NOT NULL, -- file id ofc
+    hash_filename TEXT UNIQUE NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reference_count INTEGER NOT NULL
 );

@@ -1,4 +1,7 @@
-use axum::{Router, routing::get};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 
 mod download;
 mod serve;
@@ -7,7 +10,7 @@ mod serve;
 async fn main() {
     let app = Router::new()
         .route("/serve", get(serve::files::send_image))
-        .route("/upload", get(download::files::download));
+        .route("/upload", post(download::files::download));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
