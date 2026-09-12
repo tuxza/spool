@@ -5,19 +5,23 @@ use tokio::io::AsyncWriteExt;
 pub async fn download(mut multipart: Multipart) -> Result<StatusCode, StatusCode> {
     let mut hasher = Sha256::new();
 
+    let temp = tempfile::Builder::new()
+        .prefix(".temp-spool-")
+        .tempfile_in("/home/spool")
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let std_file = temp
+        .as_file()
+        .try_clone()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut file = tokio::fs::File::from_std(std_file);
+
     while let Some(field) = multipart
         .next_field()
         .await
         .map_err(|_| StatusCode::BAD_REQUEST)?
     {
-        let filename = field.file_name().unwrap_or("unknown");
-
-        let path = format!("/tmp/{filename}");
-
-        let mut file = tokio::fs::File::create(path)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
         let mut field = field;
 
         while let Some(chunk) = field.chunk().await.map_err(|_| StatusCode::BAD_REQUEST)? {
@@ -28,8 +32,18 @@ pub async fn download(mut multipart: Multipart) -> Result<StatusCode, StatusCode
         }
     }
 
-    let hash = hasher.finalize();
-    println!("{}", hex::encode(hash));
+    file.flush()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let final_path = format!("/home/spool/{}", hex::encode(hasher.finalize()));
+
+    drop(file);
+
+    temp.persist(&final_path)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    println!("DEBUG: {}", final_path);
 
     Ok(StatusCode::CREATED)
 }
