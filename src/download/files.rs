@@ -2,7 +2,13 @@ use axum::{extract::Multipart, http::StatusCode};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 
-pub async fn download(mut multipart: Multipart) -> Result<StatusCode, StatusCode> {
+use crate::State;
+use crate::download::db::insert_file;
+
+pub async fn download(
+    axum::extract::State(state): axum::extract::State<State>,
+    mut multipart: Multipart,
+) -> Result<StatusCode, StatusCode> {
     let mut hasher = Sha256::new();
 
     let temp = tempfile::Builder::new()
@@ -36,7 +42,15 @@ pub async fn download(mut multipart: Multipart) -> Result<StatusCode, StatusCode
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let final_path = format!("/home/spool/{}", hex::encode(hasher.finalize()));
+    let hash_hex = hex::encode(hasher.finalize());
+    let final_path = format!("/home/spool/{hash_hex}");
+
+    insert_file(&state.db, &hash_hex, &final_path)
+        .await
+        .map_err(|e| {
+            eprintln!("Database error: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     drop(file);
 
