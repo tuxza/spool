@@ -4,20 +4,22 @@ use sqlx::query;
 pub async fn insert_file(
     db: &AnyPool,
     hash: &str,
-    original_filename: &str,
+    mimetype: &str,
+    file_size_bytes: i64,
 ) -> Result<(), sqlx::Error> {
     query(
         r#"
         INSERT INTO files (
             hash_filename,
-            original_filename,
-            reference_count
+            mimetype,
+            file_size_bytes
         )
-        VALUES (?, ?, 1)
+        VALUES (?, ?, ?)
         "#,
     )
     .bind(hash)
-    .bind(original_filename)
+    .bind(mimetype)
+    .bind(file_size_bytes)
     .execute(db)
     .await?;
 

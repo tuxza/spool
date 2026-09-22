@@ -6,6 +6,14 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS api_keys (
+    user_id INTEGER NOT NULL,
+    api_key TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    PRIMARY KEY (user_id, api_key)
+);
+
 CREATE TABLE IF NOT EXISTS files (
     file_id INTEGER PRIMARY KEY NOT NULL,
     hash_filename TEXT UNIQUE NOT NULL,
