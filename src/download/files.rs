@@ -4,6 +4,7 @@ use tokio::io::AsyncWriteExt;
 
 use crate::State;
 use crate::download::db::insert_file;
+use crate::types::ErrorStatus;
 
 // i think my next best step here is to filter out say..
 // someone uploading two files at once!
@@ -14,8 +15,7 @@ use crate::download::db::insert_file;
 pub async fn download(
     axum::extract::State(state): axum::extract::State<State>,
     mut multipart: Multipart,
-) -> Result<StatusCode, StatusCode> {
-    //                     ^ replace this with an actual error type
+) -> Result<StatusCode, ErrorStatus> {
     let mut hasher = Sha256::new();
     let mut file_size_bytes: u64 = 0;
     let mut detected_mimetype: Option<String> = None;
@@ -79,11 +79,11 @@ pub async fn download(
         match e {
             sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
                 drop(temp);
-                return Err(StatusCode::OK);
+                return Err((StatusCode::CONFLICT, "file already exists!\n").into()); // this will eventually be a 200 and return the uploaded file
             }
             _ => {}
-        };
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+        return Err((StatusCode::INTERNAL_SERVER_ERROR).into());
     }
 
     temp.persist(&final_path)

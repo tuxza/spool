@@ -7,6 +7,7 @@ use sqlx::{AnyPool, any::AnyPoolOptions};
 
 mod download;
 mod serve;
+mod types;
 
 #[derive(Clone)]
 pub struct State {
