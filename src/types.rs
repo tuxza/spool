@@ -3,11 +3,17 @@
 // is that a dumb reason?
 // yes.
 
-use axum::http::StatusCode;
+use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 
 impl From<StatusCode> for ErrorStatus {
     fn from(code: StatusCode) -> Self {
-        Self { code, message: "" }
+        Self {
+            code,
+            message: "no error message provided",
+        }
     }
 }
 
@@ -23,8 +29,10 @@ pub struct ErrorStatus {
     message: &'static str,
 }
 
-impl axum::response::IntoResponse for ErrorStatus {
-    fn into_response(self) -> axum::response::Response {
+impl IntoResponse for ErrorStatus {
+    fn into_response(self) -> Response {
+        println!("ERROR: {} {}", self.code, self.message);
+
         (self.code, self.message).into_response()
     }
 }

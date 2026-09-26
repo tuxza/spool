@@ -25,3 +25,6 @@ pub async fn insert_file(
 
     Ok(())
 }
+
+// code storage
+//         ON CONFLICT(hash_filename) DO NOTHING

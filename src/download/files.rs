@@ -1,6 +1,7 @@
 use axum::{extract::Multipart, http::StatusCode};
 use sha2::{Digest, Sha256};
-use tokio::io::AsyncWriteExt;
+use std::io::Write;
+use tokio::sync::mpsc;
 
 use crate::State;
 use crate::download::db::insert_file;
@@ -21,17 +22,10 @@ pub async fn download(
     let mut detected_mimetype: Option<String> = None;
     let mut multipart_mimetype: Option<String> = None;
 
-    let temp = tempfile::Builder::new()
+    let mut file = tempfile::Builder::new()
         .prefix(".temp-spool-")
         .tempfile_in("/home/spool")
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?; // also we need an actual logging system .. not this
-
-    let std_file = temp
-        .as_file()
-        .try_clone()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let mut file = tokio::fs::File::from_std(std_file);
 
     while let Some(mut field) = multipart
         .next_field()
@@ -48,7 +42,6 @@ pub async fn download(
             }
 
             file.write_all(&chunk)
-                .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
             hasher.update(&chunk);
@@ -58,10 +51,6 @@ pub async fn download(
                 .ok_or(StatusCode::PAYLOAD_TOO_LARGE)?;
         }
     }
-
-    file.flush()
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let hash_hex = hex::encode(hasher.finalize());
     let final_path = format!("/home/spool/{hash_hex}");
@@ -78,7 +67,7 @@ pub async fn download(
     if let Err(e) = result {
         match e {
             sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
-                drop(temp);
+                drop(file);
                 return Err((StatusCode::CONFLICT, "file already exists!\n").into()); // this will eventually be a 200 and return the uploaded file
             }
             _ => {}
@@ -86,8 +75,8 @@ pub async fn download(
         return Err((StatusCode::INTERNAL_SERVER_ERROR).into());
     }
 
-    temp.persist(&final_path)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    file.persist_noclobber(&final_path)
+        .map_err(|_| StatusCode::CREATED)?;
 
     println!(
         "DEBUG: {} ({}, {} bytes)",
