@@ -6,13 +6,14 @@ pub async fn insert_file(
     hash: &str,
     mimetype: &str,
     file_size_bytes: i64,
-) -> Result<(), sqlx::Error> {
-    query(
+) -> Result<bool, sqlx::Error> {
+    let result = query(
         r#"
         INSERT INTO files (
             hash_filename,
             mimetype,
             file_size_bytes
+            ON CONFLICT(hash_filename) DO NOTHING
         )
         VALUES (?, ?, ?)
         "#,
@@ -23,8 +24,5 @@ pub async fn insert_file(
     .execute(db)
     .await?;
 
-    Ok(())
+    Ok(result.rows_affected() > 0)
 }
-
-// code storage
-//         ON CONFLICT(hash_filename) DO NOTHING

@@ -1,4 +1,5 @@
 use axum::{extract::Multipart, http::StatusCode};
+use bytes::Bytes;
 use sha2::{Digest, Sha256};
 use std::io::Write;
 use tokio::sync::mpsc;
@@ -17,15 +18,34 @@ pub async fn download(
     axum::extract::State(state): axum::extract::State<State>,
     mut multipart: Multipart,
 ) -> Result<StatusCode, ErrorStatus> {
-    let mut hasher = Sha256::new();
     let mut file_size_bytes: u64 = 0;
     let mut detected_mimetype: Option<String> = None;
     let mut multipart_mimetype: Option<String> = None;
 
-    let mut file = tempfile::Builder::new()
-        .prefix(".temp-spool-")
-        .tempfile_in("/home/spool")
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?; // also we need an actual logging system .. not this
+    let (task, mut trec) = mpsc::channel::<Bytes>(8);
+
+    // note to future self:
+    //
+
+    let write = tokio::task::spawn_blocking(move || {
+        let mut hasher = Sha256::new();
+        let mut file = tempfile::Builder::new()
+            .prefix(".temp-spool-")
+            .tempfile_in("/home/tuxzilla/Projects/spool-storage")
+            .map_err(|_| std::io::Error::other("could not create temp file"))?;
+
+        while let Some(chunk) = trec.blocking_recv() {
+            file.write_all(&chunk)?;
+            hasher.update(&chunk);
+            file_size_bytes = file_size_bytes
+                .checked_add(chunk.len() as u64)
+                .ok_or(std::io::Error::other("file size too large"))?;
+        }
+
+        let hash_hex = hex::encode(hasher.finalize());
+
+        Ok((file, hash_hex, file_size_bytes))
+    });
 
     while let Some(mut field) = multipart
         .next_field()
@@ -41,19 +61,27 @@ pub async fn download(
                 detected_mimetype = infer::get(&chunk).map(|kind| kind.mime_type().to_owned());
             }
 
-            file.write_all(&chunk)
+            task.send(chunk)
+                .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-            hasher.update(&chunk);
-
-            file_size_bytes = file_size_bytes
-                .checked_add(chunk.len() as u64)
-                .ok_or(StatusCode::PAYLOAD_TOO_LARGE)?;
         }
     }
 
-    let hash_hex = hex::encode(hasher.finalize());
-    let final_path = format!("/home/spool/{hash_hex}");
+    drop(task);
+
+    let result = write
+        .await
+        .ok()
+        .and_then(|inner: Result<_, std::io::Error>| inner.ok());
+
+    let (file, hash_hex, file_size_bytes) = if let Some((file, hash_hex, file_size_bytes)) = result
+    {
+        (file, hash_hex, file_size_bytes)
+    } else {
+        return Err(StatusCode::INTERNAL_SERVER_ERROR.into());
+    };
+
+    let final_path = format!("/home/tuxzilla/Projects/spool-storage/{}", hash_hex);
 
     let mimetype = detected_mimetype
         .or(multipart_mimetype)
@@ -62,26 +90,13 @@ pub async fn download(
     let file_size_bytes =
         i64::try_from(file_size_bytes).map_err(|_| StatusCode::PAYLOAD_TOO_LARGE)?;
 
-    let result = insert_file(&state.db, &hash_hex, &mimetype, file_size_bytes).await;
+    insert_file(&state.db, &hash_hex, &mimetype, file_size_bytes).await?;
 
-    if let Err(e) = result {
-        match e {
-            sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
-                drop(file);
-                return Err((StatusCode::CONFLICT, "file already exists!\n").into()); // this will eventually be a 200 and return the uploaded file
-            }
-            _ => {}
-        }
-        return Err((StatusCode::INTERNAL_SERVER_ERROR).into());
-    }
+    // if i remember properly, noclobber will explode if a hash already exists.
+    // so we wont need the database to confirm if theres a conflict or not now.
 
-    file.persist_noclobber(&final_path)
-        .map_err(|_| StatusCode::CREATED)?;
-
-    println!(
-        "DEBUG: {} ({}, {} bytes)",
-        final_path, mimetype, file_size_bytes
-    );
+    file.persist_noclobber(final_path)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::CREATED)
 }

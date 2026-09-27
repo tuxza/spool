@@ -1497,6 +1497,7 @@ name = "spool"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "bytes",
  "hex",
  "hex-literal",
  "infer",

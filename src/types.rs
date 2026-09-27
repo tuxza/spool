@@ -8,25 +8,37 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
+#[derive(Debug)]
+pub struct ErrorStatus {
+    code: StatusCode,
+    message: String,
+}
+
 impl From<StatusCode> for ErrorStatus {
     fn from(code: StatusCode) -> Self {
         Self {
             code,
-            message: "no error message provided",
+            message: "no error message provided".to_string(),
         }
     }
 }
 
 impl From<(StatusCode, &'static str)> for ErrorStatus {
     fn from((code, message): (StatusCode, &'static str)) -> Self {
-        Self { code, message }
+        Self {
+            code,
+            message: message.to_string(),
+        }
     }
 }
 
-#[derive(Debug)]
-pub struct ErrorStatus {
-    code: StatusCode,
-    message: &'static str,
+impl From<sqlx::Error> for ErrorStatus {
+    fn from(err: sqlx::Error) -> Self {
+        Self {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            message: err.to_string(),
+        }
+    }
 }
 
 impl IntoResponse for ErrorStatus {
