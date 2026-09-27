@@ -13,9 +13,9 @@ pub async fn insert_file(
             hash_filename,
             mimetype,
             file_size_bytes
-            ON CONFLICT(hash_filename) DO NOTHING
         )
         VALUES (?, ?, ?)
+        ON CONFLICT(hash_filename) DO NOTHING
         "#,
     )
     .bind(hash)

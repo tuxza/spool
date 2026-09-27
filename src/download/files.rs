@@ -90,12 +90,18 @@ pub async fn download(
     let file_size_bytes =
         i64::try_from(file_size_bytes).map_err(|_| StatusCode::PAYLOAD_TOO_LARGE)?;
 
-    insert_file(&state.db, &hash_hex, &mimetype, file_size_bytes).await?;
+    let result = insert_file(&state.db, &hash_hex, &mimetype, file_size_bytes).await;
+    if let Err(e) = result {
+        return Err(e.into());
+    }
 
     // if i remember properly, noclobber will explode if a hash already exists.
     // so we wont need the database to confirm if theres a conflict or not now.
+    // also need to figure out what errors this returns, and its accordingly match statements
 
-    file.persist_noclobber(final_path)
+    tokio::task::spawn_blocking(move || file.persist_noclobber(final_path))
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::CREATED)
